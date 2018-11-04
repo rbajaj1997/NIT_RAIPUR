@@ -34,6 +34,8 @@ public class MainActivity extends AppCompatActivity {
     private String imageFilePath = "";
 
     private Button button1;
+    File photoFile = null;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
         Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (pictureIntent.resolveActivity(getPackageManager()) != null) {
 
-            File photoFile = null;
             try {
                 photoFile = createImageFile();
             }
@@ -67,9 +68,14 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
                 return;
             }
-            Uri photoUri = FileProvider.getUriForFile(this, getPackageName() +".provider", photoFile);
-            pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-            startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
+            if (photoFile != null) {
+                Uri photoUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".provider", photoFile);
+                pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+                startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
+            }
+            else{
+                Toast.makeText(this, "Error opening camera", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -91,16 +97,14 @@ public class MainActivity extends AppCompatActivity {
 
         if(requestCode == REQUEST_IMAGE_CAPTURE  && resultCode == RESULT_OK)
         {
-            if (data != null && data.getExtras() != null) {
-                Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
-            //    imageView.setImageBitmap(imageBitmap);
-                Intent intent = new Intent(MainActivity.this,cropping.class);
-                intent.putExtra("imgUrl",imageFilePath);
-                startActivity(intent);
-            //    Bitmap croppedImg= imageView.crop();
-
+            if (photoFile != null) {
+               if(photoFile.exists()) {
+                   Intent intent = new Intent(MainActivity.this, cropping.class);
+                   intent.putExtra("imgfile", photoFile);
+                   startActivity(intent);
+               }
             }
-            else if (resultCode == RESULT_CANCELED) {
+            else  {
                 Toast.makeText(this, "You cancelled the operation", Toast.LENGTH_SHORT).show();
             }
         }
@@ -114,10 +118,18 @@ public class MainActivity extends AppCompatActivity {
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String imageFileName = "IMG_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(imageFileName, ".jpg", storageDir);
+        File storageDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DCIM), "NITRR");
+        File image = null;
+        if(!storageDir.exists()){
+            storageDir.mkdirs();
+        }
+        try {
+            image = File.createTempFile(imageFileName, ".jpg", storageDir);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
         imageFilePath = image.getAbsolutePath();
-
         return image;
     }
 
